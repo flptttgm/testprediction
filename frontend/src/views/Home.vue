@@ -124,8 +124,8 @@
             <!-- 上传区域 -->
             <div class="console-section">
               <div class="console-header">
-                <span class="console-label">01 / Arquivo base real</span>
-                <span class="console-meta">Formatos: PDF, MD, TXT</span>
+                <span class="console-label">01 / Fonte de Dados (Arquivos, Links, Textos)</span>
+                <span class="console-meta">Formatos: PDF, MD, TXT, URL</span>
               </div>
               
               <div 
@@ -158,6 +158,35 @@
                     <span class="file-name">{{ file.name }}</span>
                     <button @click.stop="removeFile(index)" class="remove-btn">×</button>
                   </div>
+                </div>
+              </div>
+              
+              <!-- 追加：Link与Text输入框 -->
+              <div class="additional-inputs">
+                <div class="input-wrapper" style="margin-top: 15px; display: flex;">
+                  <input v-model="linkInput" type="text" class="code-input" placeholder="Adicionar URL..." @keyup.enter="addLink" style="padding: 10px; flex: 1;" />
+                  <button @click="addLink" style="background: var(--orange); color: white; border: none; padding: 0 15px; cursor: pointer; font-family: var(--font-mono); font-weight: bold;">+</button>
+                </div>
+                <div class="input-wrapper" style="margin-top: 10px; display: flex; align-items: stretch;">
+                  <textarea v-model="textInput" class="code-input" placeholder="Colar texto diretamente..." rows="2" style="padding: 10px; flex: 1;"></textarea>
+                  <button @click="addText" style="background: var(--black); color: white; border: none; padding: 0 15px; cursor: pointer; font-family: var(--font-mono); font-weight: bold;">+</button>
+                </div>
+              </div>
+
+              <!-- 显示已添加的 Links 和 Texts -->
+              <div v-if="links.length > 0" class="file-list" style="margin-top: 10px; padding: 0;">
+                <div v-for="(link, index) in links" :key="`link-${index}`" class="file-item">
+                  <span class="file-icon">🔗</span>
+                  <span class="file-name">{{ link }}</span>
+                  <button @click.stop="removeLink(index)" class="remove-btn">×</button>
+                </div>
+              </div>
+              
+              <div v-if="texts.length > 0" class="file-list" style="margin-top: 10px; padding: 0;">
+                <div v-for="(text, index) in texts" :key="`text-${index}`" class="file-item">
+                  <span class="file-icon">📝</span>
+                  <span class="file-name">{{ text.substring(0, 40) }}{{ text.length > 40 ? '...' : '' }}</span>
+                  <button @click.stop="removeText(index)" class="remove-btn">×</button>
                 </div>
               </div>
             </div>
@@ -218,8 +247,41 @@ const formData = ref({
   simulationRequirement: ''
 })
 
-// 文件列表
+// 文件和数据列表
 const files = ref([])
+const links = ref([])
+const texts = ref([])
+
+const linkInput = ref('')
+const textInput = ref('')
+
+// 添加链接
+const addLink = () => {
+  const url = linkInput.value.trim()
+  if (url) {
+    links.value.push(url)
+    linkInput.value = ''
+  }
+}
+
+// 移除链接
+const removeLink = (index) => {
+  links.value.splice(index, 1)
+}
+
+// 添加文本
+const addText = () => {
+  const txt = textInput.value.trim()
+  if (txt) {
+    texts.value.push(txt)
+    textInput.value = ''
+  }
+}
+
+// 移除文本
+const removeText = (index) => {
+  texts.value.splice(index, 1)
+}
 
 // 状态
 const loading = ref(false)
@@ -231,7 +293,8 @@ const fileInput = ref(null)
 
 // 计算属性:是否可以提交
 const canSubmit = computed(() => {
-  return formData.value.simulationRequirement.trim() !== '' && files.value.length > 0
+  const hasData = files.value.length > 0 || links.value.length > 0 || texts.value.length > 0
+  return formData.value.simulationRequirement.trim() !== '' && hasData
 })
 
 // 触发文件选择
@@ -294,7 +357,7 @@ const startSimulation = () => {
   
   // 存储待上传的数据
   import('../store/pendingUpload.js').then(({ setPendingUpload }) => {
-    setPendingUpload(files.value, formData.value.simulationRequirement)
+    setPendingUpload(files.value, links.value, texts.value, formData.value.simulationRequirement)
     
     // 立即跳转到Process页面（使用特殊标识表示新建项目）
     router.push({

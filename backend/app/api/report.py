@@ -109,6 +109,20 @@ def generate_report():
         import uuid
         report_id = f"report_{uuid.uuid4().hex[:12]}"
         
+        # 同步生成并保存初始状态，防止前端立即请求时出现 404
+        from datetime import datetime
+        initial_report = ReportManager.get_report(report_id)  # Should be None
+        from ..services.report_agent import Report, ReportStatus
+        initial_report = Report(
+            report_id=report_id,
+            simulation_id=simulation_id,
+            graph_id=graph_id,
+            simulation_requirement=simulation_requirement,
+            status=ReportStatus.PENDING,
+            created_at=datetime.now().isoformat()
+        )
+        ReportManager.save_report(initial_report)
+        
         # 创建异步任务
         task_manager = TaskManager()
         task_id = task_manager.create_task(

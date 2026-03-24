@@ -568,8 +568,8 @@ const initProject = async () => {
 const handleNewProject = async () => {
   const pending = getPendingUpload()
   
-  if (!pending.isPending || pending.files.length === 0) {
-    error.value = '没有待上传的文件，请返回首页重新操作'
+  if (!pending.isPending || (pending.files.length === 0 && (!pending.links || pending.links.length === 0) && (!pending.texts || pending.texts.length === 0))) {
+    error.value = '没有待上传的数据，请返回首页重新操作'
     loading.value = false
     return
   }
@@ -584,6 +584,19 @@ const handleNewProject = async () => {
     pending.files.forEach(file => {
       formDataObj.append('files', file)
     })
+    
+    if (pending.links && pending.links.length > 0) {
+      pending.links.forEach(link => {
+        formDataObj.append('links', link)
+      })
+    }
+    
+    if (pending.texts && pending.texts.length > 0) {
+      pending.texts.forEach(text => {
+        formDataObj.append('texts', text)
+      })
+    }
+    
     formDataObj.append('simulation_requirement', pending.simulationRequirement)
     
     // 调用本体生成 API

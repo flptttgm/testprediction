@@ -14,6 +14,7 @@ from ..services.ontology_generator import OntologyGenerator
 from ..services.graph_builder import GraphBuilderService
 from ..services.text_processor import TextProcessor
 from ..utils.file_parser import FileParser
+from ..utils.url_parser import fetch_url_text
 from ..utils.logger import get_logger
 from ..models.task import TaskManager, TaskStatus
 from ..models.project import ProjectManager, ProjectStatus
@@ -163,12 +164,16 @@ def generate_ontology():
                 "error": "请提供模拟需求描述 (simulation_requirement)"
             }), 400
         
-        # 获取上传的文件
+        # 获取上传的文件及其他输入
         uploaded_files = request.files.getlist('files')
-        if not uploaded_files or all(not f.filename for f in uploaded_files):
+        links = request.form.getlist('links')
+        texts = request.form.getlist('texts')
+        
+        has_files = uploaded_files and any(f.filename for f in uploaded_files)
+        if not has_files and not links and not texts:
             return jsonify({
                 "success": False,
-                "error": "请至少上传一个文档文件"
+                "error": "请提供文件、链接或一段文字"
             }), 400
         
         # 创建项目
@@ -198,6 +203,32 @@ def generate_ontology():
                 text = TextProcessor.preprocess_text(text)
                 document_texts.append(text)
                 all_text += f"\n\n=== {file_info['original_filename']} ===\n{text}"
+                
+        # 处理链接
+        for link in links:
+            if link.strip():
+                try:
+                    text = fetch_url_text(link.strip())
+                    text = TextProcessor.preprocess_text(text)
+                    document_texts.append(text)
+                    all_text += f"\n\n=== Link: {link} ===\n{text}"
+                    project.files.append({
+                        "filename": link,
+                        "size": len(text)
+                    })
+                except Exception as e:
+                    logger.error(f"Failed to process link {link}: {e}")
+                    
+        # 处理直接文本输入
+        for i, text_snippet in enumerate(texts):
+            if text_snippet.strip():
+                text = TextProcessor.preprocess_text(text_snippet.strip())
+                document_texts.append(text)
+                all_text += f"\n\n=== Text Snippet {i+1} ===\n{text}"
+                project.files.append({
+                    "filename": f"Text Snippet {i+1}",
+                    "size": len(text)
+                })
         
         if not document_texts:
             ProjectManager.delete_project(project.project_id)
